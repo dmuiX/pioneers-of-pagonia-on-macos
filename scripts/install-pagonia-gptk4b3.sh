@@ -36,10 +36,10 @@ RESUME_ROOT=''
 
 EXPECTED_ENGINE_ARCHIVE='0598a60af56d67b1efd35ac0751cbcc34a30a0329e2788e182dd67a5698f9353'
 EXPECTED_WRAPPER_ARCHIVE='dc97a4ff0f75b74a62b8571d4fe56387648f3755169e1dd8186b8f3d39aa597b'
-EXPECTED_GPTK_HASH_MANIFEST='702296dc74d7522c43eb95d7ae1d697cd4ac1eb5523d643c47fc9c13ff89432c'
+EXPECTED_GPTK_HASH_MANIFEST='c1e905a8d20e25913511a9daf1c766294993e1ecd231c2f12e69a4c8cfee109f'
 EXPECTED_GPTK_LINK_MANIFEST='26fbf032714eccd6254d3a1745cb39c12b886e58a6cec747ed4e15744a4bc952'
 EXPECTED_STEAM_SETUP='7d3654531c32d941b8cae81c4137fc542172bfa9635f169cb392f245a0a12bcb'
-EXPECTED_BUILD_ID='25784167'
+EXPECTED_BUILD_ID=${PAGONIA_BUILD_ID:-25784167}
 EXPECTED_GAME_EXE='a4c8aa367a7164e3621ff86819bd5135616da0b1a4afea6b14f0eeb5e9901f46'
 EXPECTED_WINESKIN_LAUNCHER='217d7f3cf154d7117103934c9ec9b952b7209412132f2ad61565fb24d6e56697'
 EXPECTED_WINE64='08bbcc27b5a76e4473e8003007e140f74b529d67a164256d86d5163d88518300'
@@ -47,8 +47,8 @@ EXPECTED_WINESERVER='dcfd293ca9d7dc29bb9fb1a413850319c85c9823368a8f1a76bb22339b6
 EXPECTED_NTDLL_UNIX='cf836b0727c47f4d9fb667628de226395697a6a5089678acea09ae32a7fb279e'
 EXPECTED_NTDLL_WINDOWS='5549f99494e8e004cd112e72f0d721f6ffbb1bab1487871bff9f7d80c0b6a5da'
 EXPECTED_ORIGINAL_DXIL='9cccc7ef419da73fa314fdaecae831c6c20206ae70732c9093f95193378ced10'
-EXPECTED_DXGI='d53d9ea91935f0de126ba528264fc4c9b4dfea8bfe43f3f1256bd3e8963d67ee'
-EXPECTED_D3D12='3174fac027d3ff10971645ac41b665cd53949c87d6d2d7d53b0073bf4bb36981'
+EXPECTED_DXGI='124015390b8527033bcd6e65af6376fde8fb3923450b63a9dbe0bbef05e63f10'
+EXPECTED_D3D12='02aa673497ff8694b41f976e194a920468e54897f3546ed1cd4c1b3a97179735'
 EXPECTED_ENGINE_CORE='b8cabb79a3f0a14babcbfd575cca70814e4d1d3e71606dfc1670421aaa39b97e'
 GAME_ICON_NAME='341e435746d0f9bf5ef074ec0aa6e5e58e65226d.ico'
 EXPECTED_GAME_ICON='809136e6b354ad4b335edc34fb2f6f547443fc0433c7c66068589b7dd20dbced'
@@ -142,6 +142,23 @@ require_hash() {
     echo "Expected: $expected" >&2
     echo "Actual:   $actual" >&2
     exit 1
+  fi
+}
+
+# Local change: with PAGONIA_BUILD_ID set, game-file hashes of an unverified
+# build are reported instead of enforced.
+require_game_hash() {
+  local path=$1 expected=$2 actual
+  if [[ -z "${PAGONIA_BUILD_ID:-}" ]]; then
+    require_hash "$path" "$expected"
+    return
+  fi
+  require_file "$path"
+  actual=$(sha256 "$path")
+  if [[ "$actual" != "$expected" ]]; then
+    echo "WARNING: Unverified game build $EXPECTED_BUILD_ID, hash differs for $path" >&2
+    echo "  Pinned: $expected" >&2
+    echo "  Actual: $actual" >&2
   fi
 }
 
@@ -659,8 +676,8 @@ validate_game() {
     echo "ERROR: Expected game build $EXPECTED_BUILD_ID, found $build." >&2
     return 1
   }
-  require_hash "$game/Pioneers of Pagonia.exe" "$EXPECTED_GAME_EXE"
-  require_hash "$game/dxil.dll" "$EXPECTED_ORIGINAL_DXIL"
+  require_game_hash "$game/Pioneers of Pagonia.exe" "$EXPECTED_GAME_EXE"
+  require_game_hash "$game/dxil.dll" "$EXPECTED_ORIGINAL_DXIL"
   python3 - "$game/Pioneers of Pagonia.exe" <<'PY'
 from pathlib import Path
 import sys
@@ -1430,7 +1447,7 @@ require_hash "$WINE_ROOT/bin/wineserver" "$EXPECTED_WINESERVER"
 require_hash "$WINE_ROOT/lib/wine/x86_64-unix/ntdll.so" "$EXPECTED_NTDLL_UNIX"
 require_hash "$WINE_ROOT/lib/wine/x86_64-windows/ntdll.dll" "$EXPECTED_NTDLL_WINDOWS"
 verify_wrapper_finalizer "$APP"
-require_hash "$GAME/dxil.dll" "$EXPECTED_ORIGINAL_DXIL"
+require_game_hash "$GAME/dxil.dll" "$EXPECTED_ORIGINAL_DXIL"
 [[ ! -e "$GAME/D3D12Core.dll" ]]
 require_hash "$SYS/dxgi.dll" "$EXPECTED_DXGI"
 require_hash "$SYS/d3d12.dll" "$EXPECTED_D3D12"

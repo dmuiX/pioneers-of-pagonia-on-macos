@@ -17,12 +17,20 @@ real Resume installation. Steam installation, authentication, download,
 publication, and launch work. The game creates its D3D12 device and swapchain,
 and the main world, terrain, water, buildings, units, and interface render.
 
-One known graphics issue remains: the minimap background is blank, while its
-symbols and position marker render correctly. Windows and Linux render the same
-game content correctly, so current evidence strongly implicates the macOS
-D3D12-to-D3DMetal/Metal compatibility path. The exact failing shader or render
-stage has not yet been identified. See
-[`analysis/v1.1.0-validation-and-known-issues-2026-10-18.md`](analysis/v1.1.0-validation-and-known-issues-2026-10-18.md).
+One known graphics issue remains in the minimap. Its symbols and position marker
+render correctly, but the background does not:
+
+- With the original GPTK 4.0 beta 3 build and game build `25784167`, the
+  minimap background is blank.
+- With GPTK 4.0 beta 3 build 2 and game build `26409857` on macOS 27.2, the
+  background is drawn, but it stays fixed when the minimap is moved. Only the
+  markers follow.
+
+Windows and Linux render the same game content correctly, so current evidence
+strongly implicates the macOS D3D12-to-D3DMetal/Metal compatibility path. The
+exact failing shader or render stage has not yet been identified. See
+[`analysis/v1.1.0-validation-and-known-issues-2026-10-18.md`](analysis/v1.1.0-validation-and-known-issues-2026-10-18.md),
+which covers the original configuration only.
 
 ## What's new in v1.2.0
 
@@ -63,6 +71,25 @@ Created D3D12Device
 Created D3D12 Swapchain
 ```
 
+### GPTK 4.0 beta 3 build 2 and newer game builds
+
+Apple re-released Game Porting Toolkit 4.0 beta 3 under the same name with
+rebuilt binaries (D3DMetal `BuildVersion 2`, dated 19.10.2026). Fourteen files
+differ from the first build; the file set and symlinks are unchanged. The hash
+manifest and the `dxgi.dll` and `d3d12.dll` pins in this branch match build 2.
+The first build of beta 3 is therefore no longer accepted.
+
+Steam has since replaced game build `25784167`. A real installation on
+19.11.2026 completed with this combination:
+
+- macOS 27.2 on Apple Silicon
+- Game Porting Toolkit 4.0 beta 3 build 2
+- Pioneers of Pagonia build `26409857`, installed with
+  `PAGONIA_BUILD_ID=26409857`
+
+The game launches and renders. Only the Fresh path was exercised; Resume,
+`--verify-existing`, and `--delete` were not repeated with this combination.
+
 ## Prerequisites
 
 1. An Apple Silicon Mac with Rosetta 2.
@@ -84,11 +111,32 @@ git clone https://github.com/dmuiX/pioneers-of-pagonia-on-macos.git
 cd pioneers-of-pagonia-on-macos
 ```
 
-Mount the GPTK 4.0 beta 3 DMG or leave it in `~/Downloads`, then run:
+Apple's download is an outer DMG that contains the toolkit as a second DMG,
+`Evaluation environment for Windows games 4.0 beta 3.dmg`. The installer mounts
+only the outer one. Open the outer DMG, double-click the inner DMG in Finder,
+and accept Apple's license so that the volume
+`Evaluation environment for Windows games 4.0 beta 3` is mounted. Then run:
 
 ```bash
 ./scripts/install-pagonia-gptk4b3.sh
 ```
+
+### Installing a newer game build
+
+The installer expects game build `25784167` and otherwise waits for that build
+until the download loop times out. Steam only delivers the current build, so
+set the expected build explicitly when it differs:
+
+```bash
+PAGONIA_BUILD_ID=26409857 ./scripts/install-pagonia-gptk4b3.sh
+```
+
+The current build ID is shown in the installer's status line (`build=...`)
+during the download and in `appmanifest_2155180.acf`. With `PAGONIA_BUILD_ID`
+set, hash differences of `Pioneers of Pagonia.exe` and `dxil.dll` are reported
+as warnings instead of aborting. The check that the executable implements both
+launch options remains enforced. Without the variable the installer behaves as
+before. Use the same variable for `--verify-existing`.
 
 The normal start discovers only staging marked by this installer version:
 no candidate starts Fresh; one candidate asks whether to continue; multiple
@@ -248,13 +296,16 @@ current installer.
 
 ## Important limitations
 
-The game is playable, but the minimap background is currently missing on the
-verified macOS graphics stack. Minimap symbols remain visible. This is an
-unresolved rendering defect, not an installation failure.
+The game is playable, but the minimap background is missing or does not follow
+the minimap position, depending on the GPTK and game build (see Current
+status). Minimap symbols remain visible. This is an unresolved rendering
+defect, not an installation failure.
 
 This is an unsupported compatibility setup. A Steam, game, macOS, Wine, or GPTK
-update may invalidate the pinned hashes or behavior. The installer intentionally
-refuses unknown game builds instead of applying binary modifications blindly.
+update may invalidate the pinned hashes or behavior. The installer refuses
+unknown game builds unless `PAGONIA_BUILD_ID` names the build explicitly. It
+never applies binary modifications to the game. A build accepted this way is
+unverified until its rendering has been checked visually.
 
 ## Support and maintenance
 
